@@ -35,21 +35,16 @@ Usage
 
 ### Rubyソース内で利用して頂点配列等を取得
 
-    require 'tinywavefrontobj'
+    require_relative 'tinywavefrontobj'
     ...
-    o = TinyWaveFrontObj.new("hoge.obj", true, true)
+    o = TinyWaveFrontObj.new("sample.obj", true, true)
     vertex_array = o.get_vertex_array
     normal_array = o.get_normal_array
     uv_array     = o.get_uv_array
     face_array   = o.get_face_array
     ...
-    if o.use_uv
-      puts "use texture"
-    end
-    
-    if o.use_normal
-      puts "use normal"
-    end
+    puts "use texture" if o.use_uv
+    puts "use normal" if o.use_normal
 
 ### 出力したjsonを読み込んで利用
 
@@ -59,7 +54,7 @@ Usage
     normal_array = nil
     uv_array     = nil
     face_array   = nil
-    File.open(JSON_FILE) { |file|
+    File.open("sample.json") { |file|
       hash = JSON.load(file)
       vertex_array = hash["vertex"]
       normal_array = hash["normal"] if hash.key?("normal")
@@ -67,13 +62,8 @@ Usage
       face_array   = hash["face"]
     }
     ...
-    if uv_array
-      puts "use texture"
-    end
-    
-    if normal_array
-      puts "use normal"
-    end
+    puts "use texture" if uv_array
+    puts "use normal" if normal_array
 
 Testing environment
 -------------------
