@@ -1,6 +1,6 @@
 #!ruby -Ku
 # -*- mode: ruby; coding: utf-8 -*-
-# Last updated: <2017/03/15 21:01:42 +0900>
+# Last updated: <2017/03/17 17:09:58 +0900>
 #
 # wavefront(.obj) read, parse and dump
 #
@@ -11,7 +11,7 @@
 # testing environment : Ruby 2.2.6 p396 mingw32
 # License : CC0 / Public Domain
 
-Version = "1.0.0"
+Version = "1.0.1"
 
 require 'pp'
 require 'json'
@@ -65,15 +65,33 @@ class TinyWaveFrontObj
   # @return [true, false] use index (vertex index)
   attr_accessor :use_index
 
+  # @return [true, false] use color array
+  attr_accessor :use_color
+
   # initialize
   #
   # @param objpath [String] .obj path
   # @param use_varray [true, false] use vertex array
   # @param use_index [true, false] use vertex index
-  def initialize(objpath, use_varray = true, use_index = true)
+  # @param use_color [true, false] use color array
+  # @param vflip [true, false] v flip of u,v
+  # @param hexcolor [true, false] color code 0xAARRGGBB
+  # @param xyzmul [Array<Float>] x,y,z flip
+  def initialize(objpath,
+                 use_varray: true,
+                 use_index: true,
+                 use_color: false,
+                 vflip: true,
+                 hexcolor: false,
+                 xyzmul: [1.0, 1.0, 1.0])
+
+    @objpath = File.expand_path(objpath)
     @use_varray = use_varray
     @use_index = use_index
-    @objpath = File.expand_path(objpath)
+    @use_color = use_color
+    @vflip = vflip
+    @hexcolor = hexcolor
+    @xyzmul = xyzmul
 
     @objdir = File.dirname(@objpath)
     @mtlname = ""
@@ -301,14 +319,13 @@ class TinyWaveFrontObj
 
   # make vertex array data
   #
-  # @param vflip [true, false] flip the v of u, v
   # @param face [true, false] create data and overwrite
-  def make_varray_data(vflip = true, force = false)
+  def make_varray_data(force = false)
     if @vertex_array_data.empty? or force
       if @use_index
-        make_varray_with_index(vflip)
+        make_varray_with_index(@vflip)
       else
-        make_varray_not_with_index(vflip)
+        make_varray_not_with_index(@vflip)
       end
     end
   end
@@ -320,28 +337,37 @@ class TinyWaveFrontObj
     vertexs = []
     normals = []
     uvs = []
+    colors = []
 
     @faces.each do |mtlname, value|
+      r, g, b = @mtls[mtlname][:diffuse]
+      col = [r, g, b]
       value.each do |face|
-        finfo = []
+        finfo = [] # !> assigned but unused variable - finfo
         face[:vertexs].each do |vi, vti, vni|
           x, y, z, _ = @vertexs[vi]
+          x *= @xyzmul[0]
+          y *= @xyzmul[1]
+          z *= @xyzmul[2]
           vertexs.push([x, y, z])
 
-          if @use_uv
-            u, v = 0.0, 0.0
-            if vti
-              u, v, _ = @uvs[vti]
-              v = 1.0 - v if vflip
-            end
-            uvs.push([u, v])
+          nx, ny, nz = 0.0, 0.0, 0.0
+          if vni
+            nx, ny, nz, _ = @normals[vni]
+            nx *= @xyzmul[0]
+            ny *= @xyzmul[1]
+            nz *= @xyzmul[2]
           end
+          normals.push([nx, ny, nz])
 
-          if @use_normal
-            nx, ny, nz = 0.0, 0.0, 0.0
-            nx, ny, nz, _ = @normals[vni] if vni
-            normals.push([nx, ny, nz])
+          u, v = 0.0, 0.0
+          if vti
+            u, v, _ = @uvs[vti]
+            v = 1.0 - v if vflip
           end
+          uvs.push([u, v])
+
+          colors.push(col)
         end
       end
     end
@@ -350,6 +376,7 @@ class TinyWaveFrontObj
       :vertex => vertexs,
       :normal => normals,
       :uv => uvs,
+      :color => colors,
     }
   end
 
@@ -360,34 +387,46 @@ class TinyWaveFrontObj
     vertexs = []
     normals = []
     uvs = []
+    colors = []
     faces = []
 
     cnt = 0
     @faces.each do |mtlname, value|
+      r, g, b = @mtls[mtlname][:diffuse]
+      col = [r, g, b]
       value.each do |face|
         finfo = []
-        face[:vertexs].each do |v|
-          vi, vti, vni = v
+        face[:vertexs].each do |vi, vti, vni|
+
           x, y, z = 0.0, 0.0, 0.0
+          if vi
+            x, y, z, _ = @vertexs[vi]
+            x *= @xyzmul[0]
+            y *= @xyzmul[1]
+            z *= @xyzmul[2]
+          end
+          xyz = [x, y, z]
+
           nx, ny, nz = 0.0, 0.0, 0.0
+          if vni
+            nx, ny, nz, _ = @normals[vni]
+            nx *= @xyzmul[0]
+            ny *= @xyzmul[1]
+            nz *= @xyzmul[2]
+          end
+          nxyz = [nx, ny, nz]
+
           u, v = 0.0, 0.0
-
-          x, y, z, _ = @vertexs[vi] if vi
-          nx, ny, nz, _ = @normals[vni] if vni
-
           if vti
             u, v, _ = @uvs[vti]
             v = 1.0 - v if vflip
           end
-
-          xyz = [x, y, z]
           uv = [u, v]
-          nxyz = [nx, ny, nz]
 
           find_idx = nil
           if vertexs.include?(xyz)
             idx = vertexs.index(xyz)
-            if uvs[idx] == uv and normals[idx] == nxyz
+            if uvs[idx] == uv and normals[idx] == nxyz and colors[idx] == col
               find_idx = idx
             end
           end
@@ -398,6 +437,7 @@ class TinyWaveFrontObj
             vertexs.push(xyz)
             uvs.push(uv)
             normals.push(nxyz)
+            colors.push(col)
             finfo.push(cnt)
             cnt += 1
           end
@@ -410,6 +450,7 @@ class TinyWaveFrontObj
       :vertex => vertexs,
       :normal => normals,
       :uv => uvs,
+      :color => colors,
       :face => faces,
     }
   end
@@ -436,6 +477,37 @@ class TinyWaveFrontObj
     return nil unless @use_uv
     make_varray_data
     return @vertex_array_data[:uv].flatten
+  end
+
+  # get color array
+  # @return [Array<Float>] color array
+  def get_color_array
+    return nil unless @use_color
+    make_varray_data
+    return get_hexcolor_array if @hexcolor
+    return @vertex_array_data[:color].flatten
+  end
+
+  def get_hexcolor_array
+    cols = []
+    @vertex_array_data[:color].each do |r, g, b|
+      cols.push(get_hexcolor(r, g, b, 1.0))
+    end
+    return cols
+  end
+
+  def iclamp(v, minv, maxv)
+    return minv if v < minv
+    return maxv if v > maxv
+    return v
+  end
+
+  def get_hexcolor(r, g, b, a)
+    a = iclamp((255 * a).to_i, 0, 255)
+    r = iclamp((255 * r).to_i, 0, 255)
+    g = iclamp((255 * g).to_i, 0, 255)
+    b = iclamp((255 * b).to_i, 0, 255)
+    return ((a << 24) + (r << 16) + (g << 8) + b)
   end
 
   # get face (vertex index) array
@@ -504,25 +576,35 @@ class TinyWaveFrontObj
   end
 
   def get_vertex_array_json(pretty = false)
-    dt = { "vertex" => get_vertex_array }
-    dt["normal"] = get_normal_array if @use_normal
-    dt["uv"] = get_uv_array if @use_uv
-    dt["face"] = get_face_array if @use_index
-    s = (pretty)? JSON.pretty_generate(dt) : JSON.generate(dt)
-    return s
+    dt = get_vertex_array_data
+    return ((pretty)? JSON.pretty_generate(dt) : JSON.generate(dt))
   end
 
   def get_vertex_array_yaml
-    dt = { "vertex" => get_vertex_array }
+    dt = get_vertex_array_data
+    return dt.to_yaml
+  end
+
+  def get_vertex_array_data
+    dt = {}
+    dt["vertex"] = get_vertex_array
     dt["normal"] = get_normal_array if @use_normal
     dt["uv"] = get_uv_array if @use_uv
+    if @use_color
+      if @hexcolor
+        dt["color"] = get_hexcolor_array
+      else
+        dt["color"] = get_color_array
+      end
+    end
     dt["face"] = get_face_array if @use_index
-    return dt.to_yaml
+    return dt
   end
 
   def get_vertex_array_raw
     s = []
     s.push("@vertexes = [")
+    s.push("  \# x, y, z")
     @vertex_array_data[:vertex].each_with_index do |xyz, i|
       x, y, z = xyz
       s.push("  #{x}, #{y}, #{z},  \# #{i}")
@@ -532,6 +614,7 @@ class TinyWaveFrontObj
 
     if @use_normal
       s.push("@normals = [")
+      s.push("  \# x, y, z")
       @vertex_array_data[:normal].each_with_index do |nxyz, i|
         nx, ny, nz = nxyz
         s.push("  #{nx}, #{ny}, #{nz},  \# #{i}")
@@ -542,9 +625,29 @@ class TinyWaveFrontObj
 
     if @use_uv
       s.push("@uvs = [")
+      s.push("  \# u, v")
       @vertex_array_data[:uv].each_with_index do |uv, i|
         u, v = uv
         s.push("  #{u}, #{v},  \# #{i}")
+      end
+      s.push("]")
+      s.push("")
+    end
+
+    if @use_color
+      s.push("@colors = [")
+      s.push("  \# r, g, b, a")
+      if @hexcolor
+        @vertex_array_data[:color].each_with_index do |col, i|
+          r, g, b = col
+          c = sprintf("0x%08x", get_hexcolor(r, g, b, 1.0))
+          s.push("  #{c},  \# #{i}")
+        end
+      else
+        @vertex_array_data[:color].each_with_index do |col, i|
+          r, g, b = col
+          s.push("  #{r}, #{g}, #{b}, 1.0,  \# #{i}")
+        end
       end
       s.push("]")
       s.push("")
@@ -564,46 +667,77 @@ class TinyWaveFrontObj
     return s.join("\n")
   end
 
+  def self.parse_options(argv)
+    require 'optparse'
+
+    opts = {
+      :varray => true,
+      :index => true,
+      :color => false,
+      :xflip => false,
+      :yflip => false,
+      :zflip => false,
+      :vflip => true,
+      :hexdolor => false,
+      :json => false,
+      :yaml => false,
+      :debug => false
+    }
+
+    OptionParser.new do |opt|
+      opt.banner = "Usage : ruby #{$0} INFILE.obj [options]"
+      opt.on("--no-index", "not use vertex index") { |v| opts[:index] = v }
+      opt.on("-x", "--xflip", "x flip") { |v| opts[:xflip] = v }
+      opt.on("-y", "--yflip", "y flip") { |v| opts[:yflip] = v }
+      opt.on("-z", "--zflip", "z flip") { |v| opts[:zflip] = v }
+      opt.on("--[no-]vflip", "v flip") { |v| opts[:vflip] = v }
+      opt.on("-c", "--color", "add diffuse color array") { |v| opts[:color] = v }
+      opt.on("--hexcolor", "color code 0xAARRGGBB") { |v| opts[:hexcolor] = v }
+      opt.on("--json", "output json format") { |v| opts[:json] = v }
+      opt.on("--yaml", "output YAML format") { |v| opts[:yaml] = v }
+      opt.on("--no-varray", "not use vertex array") { |v| opts[:varray] = v }
+      opt.on("--debug", "dump .obj information") { |v| opts[:debug] = v }
+
+      begin
+        opt.parse!(argv)
+      rescue
+        abort "Invalid option. \n#{opt}"
+      end
+
+      unless argv.empty?
+        if argv[0] =~ /\.obj$/i
+          opts[:infile] = argv.shift
+        end
+        abort "Invalid option. \n#{opt}" unless argv.empty?
+      end
+
+      abort "Not found .obj file. \n#{opt}" unless opts.key?(:infile)
+
+      xyzmul = [
+        ((opts[:xflip])? -1.0 : 1.0),
+        ((opts[:yflip])? -1.0 : 1.0),
+        ((opts[:zflip])? -1.0 : 1.0),
+      ]
+      opts[:xyzmul] = xyzmul
+
+      return opts
+    end
+  end
+
 end
 
 # ----------------------------------------
 if $0 == __FILE__
 
-  require 'optparse'
+  opts = TinyWaveFrontObj.parse_options(ARGV)
 
-  opts = {
-    :varray => true,
-    :index => true,
-    :json => false,
-    :yaml => false,
-    :debug => false
-  }
-  OptionParser.new do |opt|
-    opt.banner = "Usage : ruby #{$0} INFILE.obj [options]"
-    opt.on("--no-varray", "vertex array disable") { |v| opts[:varray] = v }
-    opt.on("--no-index", "vertex index disable") { |v| opts[:index] = v }
-    opt.on("--json", "use json format") { |v| opts[:json] = v }
-    opt.on("--yaml", "use YAML format") { |v| opts[:yaml] = v }
-    opt.on("--debug", "dump .obj information") { |v| opts[:debug] = v }
-
-    begin
-      opt.parse!(ARGV)
-    rescue
-      puts "Invalid option. \n#{opt}"
-      exit 1
-    end
-
-    unless ARGV.empty?
-      opts[:infile] = ARGV[0] if ARGV[0] =~ /\.obj$/i
-    end
-
-    unless opts.key?(:infile)
-      puts "Not found .obj file. \n#{opt}"
-      exit 1
-    end
-  end
-
-  o = TinyWaveFrontObj.new(opts[:infile], opts[:varray], opts[:index])
+  o = TinyWaveFrontObj.new(opts[:infile],
+                           use_varray: opts[:varray],
+                           use_index: opts[:index],
+                           use_color: opts[:color],
+                           vflip: opts[:vflip],
+                           hexcolor: opts[:hexcolor],
+                           xyzmul: opts[:xyzmul])
 
   if opts[:debug]
     o.dump_info_size

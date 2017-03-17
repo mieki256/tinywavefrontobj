@@ -8,7 +8,7 @@ Description
 
 Wavefront形式(.obj)の3Dモデルデータファイルを読み込んで、Rubyから使いやすい形式でテキスト出力します。
 
-3D表示関係の実験用モデルデータを用意する時に使えるんじゃないかなと…。
+全属性に対応していませんが、3D描画関係の実験用モデルデータを用意する、ぐらいのことには使えるんじゃないかなと…。
 
 Usage
 -----
@@ -25,26 +25,18 @@ Usage
 
 ### 使用可能なオプション
 
-    ruby tinywavefrontobj.rb --help
     Usage : ruby tinywavefrontobj.rb INFILE.obj [options]
-            --no-varray                  vertex array disable
-            --no-index                   vertex index disable
-            --json                       use json format
-            --yaml                       use YAML format
+            --no-index                   not use vertex index
+        -x, --xflip                      x flip
+        -y, --yflip                      y flip
+        -z, --zflip                      z flip
+            --[no-]vflip                 v flip
+        -c, --color                      add diffuse color array
+            --hexcolor                   color code 0xAARRGGBB
+            --json                       output json format
+            --yaml                       output YAML format
+            --no-varray                  not use vertex array
             --debug                      dump .obj information
-
-### Rubyソース内で利用して頂点配列等を取得
-
-    require_relative 'tinywavefrontobj'
-    ...
-    o = TinyWaveFrontObj.new("sample.obj", true, true)
-    vertex_array = o.get_vertex_array
-    normal_array = o.get_normal_array
-    uv_array     = o.get_uv_array
-    face_array   = o.get_face_array
-    ...
-    puts "use texture" if o.use_uv
-    puts "use normal" if o.use_normal
 
 ### 出力したjsonを読み込んで利用
 
@@ -64,6 +56,19 @@ Usage
     ...
     puts "use texture" if uv_array
     puts "use normal" if normal_array
+
+### Rubyソース内で利用して頂点配列等を取得
+
+    require_relative 'tinywavefrontobj'
+    ...
+    o = TinyWaveFrontObj.new("sample.obj")
+    vertex_array = o.get_vertex_array
+    normal_array = o.get_normal_array
+    uv_array     = o.get_uv_array
+    face_array   = o.get_face_array
+    ...
+    puts "use texture" if o.use_uv
+    puts "use normal" if o.use_normal
 
 Testing environment
 -------------------
