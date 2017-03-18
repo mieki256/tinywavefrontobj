@@ -1,6 +1,6 @@
 #!ruby -Ku
 # -*- mode: ruby; coding: utf-8 -*-
-# Last updated: <2017/03/17 21:03:32 +0900>
+# Last updated: <2017/03/18 14:10:01 +0900>
 #
 # wavefront(.obj) read, parse and dump
 #
@@ -11,7 +11,7 @@
 # testing environment : Ruby 2.2.6 p396 mingw32
 # License : CC0 / Public Domain
 
-Version = "1.0.2"
+Version = "1.0.3"
 
 require 'pp'
 require 'json'
@@ -76,6 +76,7 @@ class TinyWaveFrontObj
   # @param use_color [true, false] use color array
   # @param vflip [true, false] v flip of u,v
   # @param hexcolor [true, false] color code 0xAARRGGBB
+  # @param dxruby [true, false] for DXRuby
   # @param xyzmul [Array<Float>] x,y,z flip
   def initialize(objpath,
                  use_varray: true,
@@ -83,7 +84,17 @@ class TinyWaveFrontObj
                  use_color: false,
                  vflip: true,
                  hexcolor: false,
+                 dxruby: false,
                  xyzmul: [1.0, 1.0, 1.0])
+
+    if dxruby
+      use_varray = true
+      use_index = false
+      use_color = true
+      vflip = true
+      hexcolor = true
+      xyzmul[2] *= -1.0 if xyzmul[2] > 0.0
+    end
 
     @objpath = File.expand_path(objpath)
     @use_varray = use_varray
