@@ -1,6 +1,6 @@
 #!ruby -Ku
 # -*- mode: ruby; coding: utf-8 -*-
-# Last updated: <2017/03/17 17:09:58 +0900>
+# Last updated: <2017/03/17 21:03:32 +0900>
 #
 # wavefront(.obj) read, parse and dump
 #
@@ -11,7 +11,7 @@
 # testing environment : Ruby 2.2.6 p396 mingw32
 # License : CC0 / Public Domain
 
-Version = "1.0.1"
+Version = "1.0.2"
 
 require 'pp'
 require 'json'
@@ -671,17 +671,18 @@ class TinyWaveFrontObj
     require 'optparse'
 
     opts = {
-      :varray => true,
       :index => true,
-      :color => false,
       :xflip => false,
       :yflip => false,
       :zflip => false,
       :vflip => true,
-      :hexdolor => false,
+      :color => false,
+      :hexcolor => false,
       :json => false,
       :yaml => false,
-      :debug => false
+      :varray => true,
+      :dxruby => false,
+      :debug => false,
     }
 
     OptionParser.new do |opt|
@@ -691,11 +692,12 @@ class TinyWaveFrontObj
       opt.on("-y", "--yflip", "y flip") { |v| opts[:yflip] = v }
       opt.on("-z", "--zflip", "z flip") { |v| opts[:zflip] = v }
       opt.on("--[no-]vflip", "v flip") { |v| opts[:vflip] = v }
-      opt.on("-c", "--color", "add diffuse color array") { |v| opts[:color] = v }
+      opt.on("--[no-]color", "add diffuse color array") { |v| opts[:color] = v }
       opt.on("--hexcolor", "color code 0xAARRGGBB") { |v| opts[:hexcolor] = v }
       opt.on("--json", "output json format") { |v| opts[:json] = v }
       opt.on("--yaml", "output YAML format") { |v| opts[:yaml] = v }
       opt.on("--no-varray", "not use vertex array") { |v| opts[:varray] = v }
+      opt.on("--dxruby", "set --no-index --zflip --hexcolor") { |v| opts[:dxruby] = v }
       opt.on("--debug", "dump .obj information") { |v| opts[:debug] = v }
 
       begin
@@ -712,6 +714,12 @@ class TinyWaveFrontObj
       end
 
       abort "Not found .obj file. \n#{opt}" unless opts.key?(:infile)
+
+      if opts[:dxruby]
+        opts[:index] = false
+        opts[:zflip] = true
+        opts[:hexcolor] = true
+      end
 
       xyzmul = [
         ((opts[:xflip])? -1.0 : 1.0),
