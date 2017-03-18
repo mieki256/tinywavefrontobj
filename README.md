@@ -31,11 +31,12 @@ Usage
         -y, --yflip                      y flip
         -z, --zflip                      z flip
             --[no-]vflip                 v flip
-        -c, --color                      add diffuse color array
+            --[no-]color                 add diffuse color array
             --hexcolor                   color code 0xAARRGGBB
             --json                       output json format
             --yaml                       output YAML format
             --no-varray                  not use vertex array
+            --dxruby                     set --no-index --zflip --hexcolor
             --debug                      dump .obj information
 
 ### 出力したjsonを読み込んで利用
