@@ -1,6 +1,6 @@
 #!ruby -Ku
 # -*- mode: ruby; coding: utf-8 -*-
-# Last updated: <2017/03/18 14:10:01 +0900>
+# Last updated: <2017/03/31 10:12:27 +0900>
 #
 # wavefront(.obj) read, parse and dump
 #
@@ -11,7 +11,6 @@
 # testing environment : Ruby 2.2.6 p396 mingw32
 # License : CC0 / Public Domain
 
-Version = "1.0.3"
 
 require 'pp'
 require 'json'
@@ -19,6 +18,8 @@ require 'yaml'
 
 # wavefront(.obj) read, parse and dump class
 class TinyWaveFrontObj
+
+  VERSION = "1.0.4"
 
   # @return [String] .obj file path
   attr_reader :objpath
@@ -747,9 +748,8 @@ end
 
 # ----------------------------------------
 if $0 == __FILE__
-
+  Version = TinyWaveFrontObj::VERSION
   opts = TinyWaveFrontObj.parse_options(ARGV)
-
   o = TinyWaveFrontObj.new(opts[:infile],
                            use_varray: opts[:varray],
                            use_index: opts[:index],
@@ -757,7 +757,6 @@ if $0 == __FILE__
                            vflip: opts[:vflip],
                            hexcolor: opts[:hexcolor],
                            xyzmul: opts[:xyzmul])
-
   if opts[:debug]
     o.dump_info_size
     o.dump_faces
